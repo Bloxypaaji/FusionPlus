@@ -132,6 +132,8 @@ fullscreen = 0
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
 #android.sdk_path =
 
+#android.build_tools = 36.0.0
+
 # (str) ANT directory (if empty, it will be automatically downloaded.)
 #android.ant_path =
 
