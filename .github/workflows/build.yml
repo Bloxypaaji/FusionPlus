@@ -1,49 +1,71 @@
-name: CI
+name: Build Kivy Android APK
 on:
   push:
     branches: [ main ]
-
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Get Date
-        id: get-date
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install System Dependencies
         run: |
-          echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
-        shell: bash
-      
-      - name: Cache Buildozer global directory
-        uses: actions/cache@v4
-        with:
-          path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
-      
-      - name: Cache Buildozer build directory
-        uses: actions/cache@v4
-        with:
-          path: .buildozer
-          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
-      
-      - name: Accept Android SDK licenses
+          sudo apt update
+          sudo apt install -y \
+            git zip unzip openjdk-17-jdk \
+            python3 python3-pip python3-venv \
+            libffi-dev libssl-dev libjpeg-dev zlib1g-dev \
+            build-essential libsdl2-dev libsdl2-image-dev \
+            libsdl2-mixer-dev libsdl2-ttf-dev
+      - name: Install Buildozer & Dependencies
         run: |
-          mkdir -p ~/.android
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.android/repositories.cfg
-          yes | sudo apt-get install -y sdkmanager
-          yes | sdkmanager --licenses
-        shell: bash
-      
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer -v android debug
-          buildozer_version: stable
+          pip3 install --upgrade pip
+          pip3 install --upgrade buildozer cython virtualenv kivy
+      - name: Set Up Android SDK
+        run: |
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
-      - name: Upload artifacts
+          # Create SDK Directories
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          mkdir -p $ANDROID_HOME/licenses
+          
+          # Download and Extract Android SDK Command Line Tools
+          curl -o sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
+          unzip -q sdk-tools.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          
+          # Accept Android SDK Licenses Automatically
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          
+          # Install Required SDK Components
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
+            "platform-tools" "platforms;android-33" \
+            "build-tools;33.0.2" "ndk;25.2.9519653" \
+            "cmdline-tools;latest"
+            
+          # Verify Installations
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed
+      - name: Cache Buildozer & Android SDK
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.buildozer
+            ~/android-sdk
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
+      - name: Build APK with Buildozer
+        run: |
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          buildozer -v android debug
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+          name: Kivy-APK
+          path: bin/*.apk
