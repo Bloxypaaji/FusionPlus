@@ -1,4 +1,4 @@
-name: Android Build with Buildozer
+name: Build Kivy Android APK
 on:
   push:
     branches: [ main ]
@@ -11,7 +11,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set Up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
@@ -35,22 +35,26 @@ jobs:
           export ANDROID_HOME=$HOME/.android-sdk
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
-          # Create Android SDK Directories
+          # Create SDK Directories
           sudo mkdir -p $ANDROID_HOME/cmdline-tools
           sudo mkdir -p $ANDROID_HOME/licenses
           
-          # Download Android SDK Command Line Tools
-          curl -o sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
+          # Download and Extract Android SDK Command Line Tools
+          curl -o sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
           sudo unzip sdk-tools.zip -d $ANDROID_HOME/cmdline-tools
           sudo mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
           
-          # Accept All Android SDK Licenses
+          # Accept Android SDK Licenses Automatically
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
           
-          # Install Required Android SDK Components
+          # Install Required SDK Components
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
             "platform-tools" "platforms;android-34" \
-            "build-tools;34.0.0" "ndk;25.2.9519653"
+            "build-tools;36.0.0" "ndk;25.2.9519653" \
+            "cmdline-tools;latest"
+
+          # Verify Installations
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list
 
       - name: Cache Buildozer & Android SDK
         uses: actions/cache@v3
@@ -72,6 +76,3 @@ jobs:
           name: Kivy-APK
           path: bin/*.apk
 
-      - name: Show Logs
-        run: |
-          cat .buildozer/android/platform/android-sdk/commandlinetools-linux/bin/sdkmanager --list || true
