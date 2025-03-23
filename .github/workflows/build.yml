@@ -23,6 +23,13 @@ jobs:
           pip3 install --upgrade pip
           pip3 install buildozer cython virtualenv
 
+      - name: Install Android SDK & Accept Licenses
+        run: |
+          sudo mkdir -p /home/runner/.android
+          sudo touch /home/runner/.android/repositories.cfg
+          yes | sdkmanager --licenses
+          yes | sdkmanager "build-tools;36.0.0"
+
       - name: Build APK with Buildozer
         run: |
           buildozer android debug
@@ -32,6 +39,7 @@ jobs:
         with:
           name: APK
           path: bin/*.apk
+
       - name: Show Logs
         run: |
           cat .buildozer/android/platform/android-sdk/commandlinetools-linux/bin/sdkmanager --list || true
